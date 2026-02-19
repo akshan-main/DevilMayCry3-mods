@@ -10,7 +10,8 @@ DISCLAIMER: UNOFFICIAL FAN MODS, REQUIRES ORIGINAL COPY OF THE GAME
 
 ## What is this
 
-Trainer + DX9 overlay for **DMC3 Special Edition** (2006 Ubisoft PC port). This was removed from Steam sometime in 2024 based on my research, but if you purchased it prior to that it still works. ** I do not encourage to pirate games**
+Trainer + DX9 overlay for **DMC3 Special Edition** (2006 Ubisoft PC port). This was removed from Steam sometime in 2024 based on my research, but if you purchased it prior to that it still works. 
+<mark> I do not encourage to pirate games</mark>
 
 Has the standard trainer stuff (inf HP/DT, damage mult, one-hit kill) but the main thing is the overlay, draws an **enemy HP bar** above whoever you're locked onto, and a **combo tracker** that shows total hits + damage dealt. Also adds **turbo mode** which the 2006 port never had (was PS2 only).
 
