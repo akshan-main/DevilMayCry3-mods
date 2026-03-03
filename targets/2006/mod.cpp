@@ -143,11 +143,13 @@ static void font_draw(void* font, const char* txt, RECT* rc, DWORD fmt, DWORD co
 }
 
 static void render_overlay(IDirect3DDevice9* dev) {
-    DWORD old_fvf, old_z, old_ab, old_lit;
+    DWORD old_fvf, old_z, old_ab, old_lit, old_src, old_dst;
     dev->GetFVF(&old_fvf);
     dev->GetRenderState(D3DRS_ZENABLE, &old_z);
     dev->GetRenderState(D3DRS_ALPHABLENDENABLE, &old_ab);
     dev->GetRenderState(D3DRS_LIGHTING, &old_lit);
+    dev->GetRenderState(D3DRS_SRCBLEND, &old_src);
+    dev->GetRenderState(D3DRS_DESTBLEND, &old_dst);
     dev->SetRenderState(D3DRS_ZENABLE, FALSE);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
     dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -234,6 +236,8 @@ static void render_overlay(IDirect3DDevice9* dev) {
     dev->SetFVF(old_fvf);
     dev->SetRenderState(D3DRS_ZENABLE, old_z);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, old_ab);
+    dev->SetRenderState(D3DRS_SRCBLEND, old_src);
+    dev->SetRenderState(D3DRS_DESTBLEND, old_dst);
     dev->SetRenderState(D3DRS_LIGHTING, old_lit);
 }
 
@@ -311,10 +315,22 @@ static void setup_addrs() {
     g.a_lockon = g_base + OFF_LOCKON;
     g.a_dmg = g_base + OFF_DMGCALC;
 
-    // sanity check - if the player pos is garbage we're probably in the wrong exe
-    if(IsBadReadPtr(g.a_player, 0x100)) {
+    // sanity check - if the player struct is unreadable we're in the wrong exe
+    if(IsBadReadPtr(g.a_player, 0x3000)) {
         log_msg("!! player base bad (%p) - wrong exe?", g.a_player);
+        g.a_hp = NULL; g.a_dt = NULL; g.a_speed = NULL;
     } else {
+        // verify hp/dt look like reasonable floats (not garbage memory)
+        float hp = *(float*)g.a_hp;
+        float dt = *(float*)g.a_dt;
+        if(hp < 0 || hp > 100000.0f) {
+            log_msg("!! hp value looks wrong (%.1f) - wrong exe version?", hp);
+            g.a_hp = NULL;
+        }
+        if(dt < 0 || dt > 100000.0f) {
+            log_msg("!! dt value looks wrong (%.1f) - wrong exe version?", dt);
+            g.a_dt = NULL;
+        }
         float* pos = (float*)(g.a_player + PL_POS);
         log_msg("player @ %p, pos=(%.0f,%.0f,%.0f)", g.a_player, pos[0], pos[1], pos[2]);
     }
@@ -322,11 +338,16 @@ static void setup_addrs() {
     // jump counter - aob scan because i couldnt find the offset manually
     g.a_jumps = aob_scan(NULL, SIG_JUMP);
 
-    // hook the damage function
-    if(hook_install("dmgcalc", g.a_dmg, (BYTE*)hooked_dmg, 5, &g_orig_dmg))
+    // hook the damage function - verify first 2 bytes look right before hooking
+    // 0x446C4C should be inside a function, expect a valid instruction not 00/CC padding
+    if(g.a_dmg[0] == 0x00 || g.a_dmg[0] == 0xCC) {
+        log_msg("dmg hook: address looks like padding, not hooking");
+        g.a_dmg = NULL;
+    } else if(hook_install("dmgcalc", g.a_dmg, (BYTE*)hooked_dmg, 5, &g_orig_dmg)) {
         log_msg("dmg hook ok");
-    else
+    } else {
         log_msg("dmg hook FAILED");
+    }
 }
 
 static void apply() {
@@ -336,7 +357,7 @@ static void apply() {
     if(g.a_hp && g.inf_hp) *(float*)g.a_hp = 20000.0f;
     if(g.a_dt && g.inf_dt) *(float*)g.a_dt = 10000.0f;
 
-    // turbo
+    // turbo - game has this in the menu but no hotkey, this patches workrate directly
     if(g.a_speed)
         *(float*)g.a_speed = g.turbo ? g.game_speed : 1.0f;
 
@@ -392,7 +413,10 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, LPVOID) {
         CreateThread(NULL,0,init_thread,NULL,0,NULL);
     }
     if(reason==DLL_PROCESS_DETACH) {
-        g_run=false; hk_stop(); hook_remove_all();
+        g_run=false; hk_stop();
+        // restore any active nop patches so the game code is back to original
+        if(p_jmp && g.a_jumps) nop_restore(g.a_jumps, 6, sv_jmp);
+        hook_remove_all();
         if(g_font) { typedef ULONG(__stdcall*fn)(void*); ((fn)(*(void***)g_font)[FONT_RELEASE])(g_font); }
         log_close();
     }

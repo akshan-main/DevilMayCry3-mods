@@ -53,8 +53,10 @@ int main() {
     }
     printf("Found PID %d\n", pid);
 
-    // inject
-    HANDLE proc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    // inject - only request the rights we actually need
+    HANDLE proc = OpenProcess(
+        PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
+        PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (!proc) {
         printf("OpenProcess failed (%d). Run as admin.\n", GetLastError());
         printf("Press enter to exit...\n"); getchar();
@@ -63,7 +65,19 @@ int main() {
 
     size_t pathlen = strlen(full) + 1;
     LPVOID rmem = VirtualAllocEx(proc, NULL, pathlen, MEM_COMMIT, PAGE_READWRITE);
-    WriteProcessMemory(proc, rmem, full, pathlen, NULL);
+    if (!rmem) {
+        printf("VirtualAllocEx failed (%d)\n", GetLastError());
+        CloseHandle(proc);
+        printf("Press enter to exit...\n"); getchar();
+        return 1;
+    }
+    if (!WriteProcessMemory(proc, rmem, full, pathlen, NULL)) {
+        printf("WriteProcessMemory failed (%d)\n", GetLastError());
+        VirtualFreeEx(proc, rmem, 0, MEM_RELEASE);
+        CloseHandle(proc);
+        printf("Press enter to exit...\n"); getchar();
+        return 1;
+    }
 
     FARPROC loadlib = GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
     HANDLE t = CreateRemoteThread(proc, NULL, 0, (LPTHREAD_START_ROUTINE)loadlib, rmem, 0, NULL);

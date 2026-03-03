@@ -102,7 +102,7 @@ BYTE* aob_scan(const char* mod_name, const char* sig) {
     BYTE* base = (BYTE*)mi.lpBaseOfDll;
     SIZE_T sz = mi.SizeOfImage;
     PB pat[128]; int pl = parse_pat(sig, pat, 128);
-    if(!pl) { log_msg("scan: bad sig"); return NULL; }
+    if(pl <= 0 || (SIZE_T)pl > sz) { log_msg("scan: bad sig or module too small"); return NULL; }
 
     for(SIZE_T i=0; i<=sz-pl; i++) {
         bool ok=true;
@@ -218,6 +218,7 @@ void state_defaults(ModState* s) {
     s->game_speed = 1.2f;  // default turbo speed (ps2 turbo was ~1.2x)
     s->show_hp = true;     // hp bars on by default
     s->show_combo = true;
+    s->style_id = -1;      // -1 = no override
     // enemy struct offsets (found via CE struct dissect)
     s->ent_hp_off = 0x21B0;
     s->ent_maxhp_off = 0x2184;
@@ -250,4 +251,20 @@ void cb_cycle_dmg(void* p) {
     else if(s->dmg_mult<7.0f) s->dmg_mult=10.0f;
     else s->dmg_mult=1.0f;
     log_msg("dmg: %.0fx", s->dmg_mult);
+}
+
+void cb_style_switch(void* p) {
+    ModState* s=(ModState*)p;
+    s->style_switch=!s->style_switch;
+    if(!s->style_switch) s->style_id=-1;  // clear override when disabled
+    log_msg("style_switch: %d", s->style_switch);
+}
+
+// 0=trickster 1=swordmaster 2=gunslinger 3=royalguard 4=quicksilver 5=doppelganger
+void cb_cycle_style(void* p) {
+    ModState* s=(ModState*)p;
+    if(!s->style_switch) return;
+    s->style_id = (s->style_id + 1) % 6;
+    const char* names[] = {"trickster","swordmaster","gunslinger","royalguard","quicksilver","doppelganger"};
+    log_msg("style -> %d (%s)", s->style_id, names[s->style_id]);
 }

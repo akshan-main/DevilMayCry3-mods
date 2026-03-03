@@ -25,7 +25,7 @@ int   ini_vkey(const char* sec, const char* key, int def);
 // aob scanner
 BYTE* aob_scan(const char* mod_name, const char* sig);
 
-// x86 detour
+// detour hooks
 bool hook_install(const char* tag, BYTE* target, BYTE* detour, int stolen, BYTE** trampoline);
 void hook_remove_all();
 void nop_patch(BYTE* addr, int len, BYTE* save);
@@ -72,6 +72,10 @@ struct ModState {
     int ent_maxhp_off;
     int ent_pos_off;
 
+    // hd only
+    bool style_switch;  // allow mid-mission style change
+    int  style_id;      // -1 = no override, 0-5 = forced style
+
     bool ready;
 };
 
@@ -87,3 +91,5 @@ void cb_turbo(void* s);
 void cb_show_hp(void* s);
 void cb_show_combo(void* s);
 void cb_cycle_dmg(void* s);
+void cb_style_switch(void* s);
+void cb_cycle_style(void* s);

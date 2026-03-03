@@ -1,4 +1,5 @@
 build/
+build_hd/
 *.obj
 *.exe
 *.dll
