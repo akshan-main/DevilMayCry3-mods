@@ -10,7 +10,7 @@ void log_init(const char* path) {
     if (g_log_ok) return;
     InitializeCriticalSection(&g_logcs);
     g_log = fopen(path, "a");
-    if (!g_log) return;
+    if (!g_log) { DeleteCriticalSection(&g_logcs); return; }
     g_log_ok = true;
     SYSTEMTIME t; GetLocalTime(&t);
     fprintf(g_log, "\n--- %04d-%02d-%02d %02d:%02d:%02d ---\n",
@@ -119,6 +119,7 @@ struct Hook { BYTE* tgt; BYTE* tramp; BYTE sv[16]; int len; bool on; };
 #define MAXHK 32
 static Hook g_hooks[MAXHK]; static int g_nh=0;
 
+#ifndef _WIN64  // x86 only - rel32 jmp cant reach in 64-bit
 bool hook_install(const char* tag, BYTE* target, BYTE* detour, int stolen, BYTE** trampoline) {
     if(!target||!detour||stolen<5||g_nh>=MAXHK) return false;
     BYTE* tr = (BYTE*)VirtualAlloc(NULL, stolen+5, MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -140,6 +141,8 @@ bool hook_install(const char* tag, BYTE* target, BYTE* detour, int stolen, BYTE*
     log_msg("hook '%s' %p->%p", tag, target, detour);
     return true;
 }
+
+#endif // !_WIN64
 
 void hook_remove_all() {
     for(int i=0;i<g_nh;i++) {

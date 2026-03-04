@@ -80,6 +80,13 @@ int main() {
     }
 
     FARPROC loadlib = GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
+    if (!loadlib) {
+        printf("GetProcAddress for LoadLibraryA failed\n");
+        VirtualFreeEx(proc, rmem, 0, MEM_RELEASE);
+        CloseHandle(proc);
+        printf("Press enter to exit...\n"); getchar();
+        return 1;
+    }
     HANDLE t = CreateRemoteThread(proc, NULL, 0, (LPTHREAD_START_ROUTINE)loadlib, rmem, 0, NULL);
 
     if (!t) {

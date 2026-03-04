@@ -39,7 +39,9 @@ static BYTE* g_base = NULL;
 // ---- player pointer ---------------------------------------------------
 
 static BYTE* get_player() {
-    BYTE* pool = *(BYTE**)(g_base + OFF_POOL);
+    BYTE* pp = g_base + OFF_POOL;
+    if(IsBadReadPtr(pp, sizeof(BYTE*))) return NULL;
+    BYTE* pool = *(BYTE**)pp;
     if(!pool || IsBadReadPtr(pool, 8)) return NULL;
     BYTE* player = *(BYTE**)pool;
     if(!player || IsBadReadPtr(player, 0x7000)) return NULL;

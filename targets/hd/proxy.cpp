@@ -75,8 +75,8 @@ BOOL APIENTRY DllMain(HMODULE hmod, DWORD reason, LPVOID) {
         load_mod();
     }
     if(reason == DLL_PROCESS_DETACH) {
-        if(g_mod)  FreeLibrary(g_mod);
-        if(g_real) FreeLibrary(g_real);
+        // dont FreeLibrary here - loader lock makes it unsafe
+        // process teardown cleans up anyway
     }
     return TRUE;
 }

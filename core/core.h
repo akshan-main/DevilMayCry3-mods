@@ -26,7 +26,9 @@ int   ini_vkey(const char* sec, const char* key, int def);
 BYTE* aob_scan(const char* mod_name, const char* sig);
 
 // detour hooks
+#ifndef _WIN64  // x86 only
 bool hook_install(const char* tag, BYTE* target, BYTE* detour, int stolen, BYTE** trampoline);
+#endif
 void hook_remove_all();
 void nop_patch(BYTE* addr, int len, BYTE* save);
 void nop_restore(BYTE* addr, int len, const BYTE* save);

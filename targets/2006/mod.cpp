@@ -315,6 +315,12 @@ static void setup_addrs() {
     g.a_lockon = g_base + OFF_LOCKON;
     g.a_dmg = g_base + OFF_DMGCALC;
 
+    // verify lockon pointer is at least readable
+    if(IsBadReadPtr(g.a_lockon, 4)) {
+        log_msg("!! lockon addr bad (%p)", g.a_lockon);
+        g.a_lockon = NULL;
+    }
+
     // sanity check - if the player struct is unreadable we're in the wrong exe
     if(IsBadReadPtr(g.a_player, 0x3000)) {
         log_msg("!! player base bad (%p) - wrong exe?", g.a_player);
@@ -338,9 +344,12 @@ static void setup_addrs() {
     // jump counter - aob scan because i couldnt find the offset manually
     g.a_jumps = aob_scan(NULL, SIG_JUMP);
 
-    // hook the damage function - verify first 2 bytes look right before hooking
+    // hook the damage function - verify it looks right before hooking
     // 0x446C4C should be inside a function, expect a valid instruction not 00/CC padding
-    if(g.a_dmg[0] == 0x00 || g.a_dmg[0] == 0xCC) {
+    if(IsBadReadPtr(g.a_dmg, 8)) {
+        log_msg("dmg hook: address unreadable");
+        g.a_dmg = NULL;
+    } else if(g.a_dmg[0] == 0x00 || g.a_dmg[0] == 0xCC) {
         log_msg("dmg hook: address looks like padding, not hooking");
         g.a_dmg = NULL;
     } else if(hook_install("dmgcalc", g.a_dmg, (BYTE*)hooked_dmg, 5, &g_orig_dmg)) {
